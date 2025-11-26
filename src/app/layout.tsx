@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Buzz Plus Solutions - Invoice Manager",
   description: "Professional invoice management system by Buzz Plus Solutions",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

@@ -23,7 +23,7 @@ export default function Sidebar() {
     <div className="w-64 min-h-screen flex flex-col shadow-xl" style={{ background: '#0F4C3C' }}>
       <div className="p-6 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Buzz Plus Solutions" className="h-10 w-auto" />
+          <img src="/logo.svg" alt="Buzz Plus Solutions" className="h-10 w-auto" />
           <div>
             <h1 className="text-lg font-bold text-white" style={{ fontFamily: 'Montserrat, sans-serif' }}>Buzz Plus</h1>
             <p className="text-xs" style={{ color: '#FFD166', fontFamily: 'Lato, sans-serif' }}>Solutions</p>

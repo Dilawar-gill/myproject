@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import puppeteer from 'puppeteer';
-import { TAX_RATES } from '@/types';
+import { TAX_RATES, Province } from '@/types';
+import type { Invoice, Company, Client, InvoiceItem } from '@prisma/client';
+
+type InvoiceWithRelations = Invoice & {
+  company: Company;
+  client: Client;
+  items: InvoiceItem[];
+};
 
 // Generate bilingual PDF HTML for Quebec, English-only for other provinces
-function generateInvoiceHTML(invoice: any, company: any, client: any, items: any[]) {
+function generateInvoiceHTML(invoice: InvoiceWithRelations) {
+  const { company, client, items } = invoice;
   const isQuebec = invoice.province === 'QC';
-  const taxInfo = TAX_RATES[invoice.province as keyof typeof TAX_RATES];
+  const taxInfo = TAX_RATES[invoice.province as Province];
 
   return `
 <!DOCTYPE html>
@@ -118,7 +126,12 @@ function generateInvoiceHTML(invoice: any, company: any, client: any, items: any
 
 export async function POST(req: NextRequest) {
   try {
-    const { invoiceId } = await req.json();
+    const body = await req.json();
+    const invoiceId = body?.invoiceId;
+
+    if (!invoiceId || typeof invoiceId !== 'string') {
+      return NextResponse.json({ error: 'Invalid invoice ID' }, { status: 400 });
+    }
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
@@ -131,22 +144,29 @@ export async function POST(req: NextRequest) {
 
     console.log('[PDF] Invoice items:', JSON.stringify(invoice.items, null, 2));
     
-    const html = generateInvoiceHTML(invoice, invoice.company, invoice.client, invoice.items);
+    const html = generateInvoiceHTML(invoice);
 
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
-
-    return new NextResponse(pdf, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
-      },
+    const browser = await puppeteer.launch({ 
+      headless: true, 
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] 
     });
+    
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdf = await page.pdf({ format: 'A4', printBackground: true });
+
+      return new NextResponse(Buffer.from(pdf), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="invoice-${invoice.invoiceNumber}.pdf"`,
+        },
+      });
+    } finally {
+      await browser.close();
+    }
   } catch (error) {
-    console.error(error);
+    console.error('[PDF] Error:', error);
     return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
   }
 }

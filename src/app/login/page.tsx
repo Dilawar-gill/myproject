@@ -1,47 +1,89 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
+/**
+ * Login Page Component
+ * Handles user authentication with email/password
+ * Redirects to home page after successful login
+ */
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
+  // Get the redirect URL from query params (set by middleware)
+  const from = searchParams.get('from') || '/';
+
+  /**
+   * Check if user is already authenticated on component mount
+   * If yes, redirect to home page
+   */
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          // User is already authenticated, redirect to home
+          router.replace(from);
+        }
+      } catch (error) {
+        // User is not authenticated, stay on login page
+      }
+    };
+    checkAuth();
+  }, [router, from]);
+
+  /**
+   * Handle login form submission
+   * Sends credentials to API and handles response
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Send login request to API
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-        credentials: 'include',
+        credentials: 'include', // Important: Include cookies in request
       });
 
       if (res.ok) {
         const data = await res.json();
-        // Store token in localStorage as backup
-        localStorage.setItem('auth_token', data.token);
-        toast({ title: 'Login successful' });
-        // Small delay to ensure cookie is set
+        
+        // Show success message
+        toast({ title: 'Login successful', description: 'Redirecting...' });
+        
+        // Small delay to ensure cookie is set, then redirect
         setTimeout(() => {
-          window.location.href = '/';
-        }, 100);
+          window.location.href = from;
+        }, 500);
       } else {
         const data = await res.json();
-        toast({ title: 'Login failed', description: data.error || 'Invalid credentials', variant: 'destructive' });
+        toast({ 
+          title: 'Login failed', 
+          description: data.message || 'Invalid credentials', 
+          variant: 'destructive' 
+        });
       }
     } catch (error) {
-      toast({ title: 'Error', description: 'Connection failed', variant: 'destructive' });
+      toast({ 
+        title: 'Error', 
+        description: 'Connection failed. Please try again.', 
+        variant: 'destructive' 
+      });
     } finally {
       setLoading(false);
     }
@@ -59,7 +101,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl border-0 relative z-10">
         <CardHeader className="text-center pb-8 pt-10">
           <div className="mx-auto mb-6">
-            <img src="/logo.png" alt="Buzz Plus Solutions" className="h-24 w-auto mx-auto" />
+            <img src="/logo.svg" alt="Buzz Plus Solutions" className="h-24 w-auto mx-auto" />
           </div>
           <CardTitle className="text-3xl font-bold" style={{ fontFamily: 'Montserrat, sans-serif', color: '#0F4C3C' }}>Buzz Plus Solutions</CardTitle>
           <p className="text-sm mt-2" style={{ color: '#666', fontFamily: 'Lato, sans-serif' }}>Invoice Management System</p>
@@ -103,7 +145,7 @@ export default function LoginPage() {
               <a href="#" className="text-sm hover:underline" style={{ color: '#FFD166', fontFamily: 'Lato, sans-serif' }}>Forgot Password?</a>
             </div>
             <p className="text-xs text-center mt-4" style={{ color: '#999', fontFamily: 'Lato, sans-serif' }}>
-              Default: admin@example.com / admin123
+              Powered by <a href="https://buzzplussolutions.com" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: '#06D6A0' }}>buzzplussolutions.com</a>
             </p>
           </form>
         </CardContent>

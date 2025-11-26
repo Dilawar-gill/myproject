@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyToken, COOKIE_NAME } from '@/lib/auth';
 
+interface TokenPayload {
+  userId: string;
+  role: string;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -10,9 +15,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const payload = verifyToken(token) as any;
+    const payload = verifyToken(token) as TokenPayload | null;
     
-    if (!payload || !payload.userId) {
+    if (!payload?.userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 

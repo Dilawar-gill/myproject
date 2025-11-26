@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { ServiceCategory } from '@prisma/client';
 
 async function seedDatabase() {
   try {
@@ -10,8 +11,8 @@ async function seedDatabase() {
     // Delete ALL users first
     await prisma.user.deleteMany({});
     
-    // Hash password with bcrypt cost factor 8 (faster)
-    const passwordHash = await bcrypt.hash(password, 8);
+    // Hash password with bcrypt cost factor 10 (standard)
+    const passwordHash = await bcrypt.hash(password, 10);
     
     // Verify hash works immediately
     const testVerify = await bcrypt.compare(password, passwordHash);
@@ -49,7 +50,14 @@ async function seedDatabase() {
     for (const service of services) {
       const existing = await prisma.service.findFirst({ where: { nameEn: service.nameEn } });
       if (!existing) {
-        await prisma.service.create({ data: service as any });
+        await prisma.service.create({ 
+          data: {
+            nameEn: service.nameEn,
+            nameFr: service.nameFr,
+            defaultPrice: service.defaultPrice,
+            category: service.category as ServiceCategory
+          }
+        });
       }
     }
 
@@ -58,7 +66,7 @@ async function seedDatabase() {
       credentials: { email, password },
       user: { id: user.id, email: user.email, name: user.name, role: user.role }
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error('❌ Seed error:', error);
     throw error;
   }
@@ -68,8 +76,9 @@ export async function GET() {
   try {
     const result = await seedDatabase();
     return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ message: 'Server error', error: message }, { status: 500 });
   }
 }
 
@@ -77,7 +86,8 @@ export async function POST() {
   try {
     const result = await seedDatabase();
     return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ message: 'Server error', error: message }, { status: 500 });
   }
 }

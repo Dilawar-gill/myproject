@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,11 @@ import { Company, Service, InvoiceItem, Province, TAX_RATES } from '@/types';
 import { Trash2, Plus } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 
+/**
+ * Home Page - Invoice Creation
+ * Protected route - requires authentication
+ * Middleware will redirect to /login if not authenticated
+ */
 export default function InvoicePage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -20,12 +26,33 @@ export default function InvoicePage() {
   const [clientInfo, setClientInfo] = useState({ name: '', address: '', phone: '', email: '' });
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
   const { toast } = useToast();
 
+  /**
+   * Check authentication status on mount
+   * This is a client-side check in addition to middleware protection
+   */
   useEffect(() => {
-    fetchCompanies();
-    fetchServices();
-  }, []);
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          setIsAuthenticated(true);
+          // User is authenticated, fetch data
+          fetchCompanies();
+          fetchServices();
+        } else {
+          // Not authenticated, middleware will redirect
+          router.replace('/login');
+        }
+      } catch (error) {
+        router.replace('/login');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   const fetchCompanies = async () => {
     const res = await fetch('/api/companies');
@@ -144,6 +171,18 @@ export default function InvoicePage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex">
